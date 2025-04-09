@@ -1,23 +1,18 @@
-package edu.hei.school.restaurant.model;
+package edu.hei.school.restaurant.dtos.responses;
 
 import edu.hei.school.restaurant.enums.StockMovementType;
 import edu.hei.school.restaurant.enums.Unit;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Getter;
 
 import java.time.Instant;
 
 @AllArgsConstructor
-@NoArgsConstructor
-@Builder
-@Data
-public class StockMovement {
+@Getter
+public class StockMovementRest {
     private Long id;
-    private Ingredient ingredient;
     private Double quantity;
     private Unit unit;
-    private StockMovementType movementType;
+    private StockMovementType type;
     private Instant creationDatetime;
 }

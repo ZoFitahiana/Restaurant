@@ -11,8 +11,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
-import static edu.hei.school.restaurant.model.StockMovementType.IN;
-import static edu.hei.school.restaurant.model.StockMovementType.OUT;
+import static edu.hei.school.restaurant.enums.StockMovementType.IN;
+import static edu.hei.school.restaurant.enums.StockMovementType.OUT;
 
 @AllArgsConstructor
 @NoArgsConstructor
