@@ -43,8 +43,18 @@ public class IngredientRestController {
     }
 
     @PostMapping("/ingredients")
-    public ResponseEntity<Object> addIngredients() {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public ResponseEntity<Object> createIngredients(@RequestBody List<CreateOrUpdateIngredient> ingredientsToCreate) {
+        try {
+            List<Ingredient> ingredients = ingredientsToCreate.stream()
+                    .map(ingredient -> ingredientRestMapper.toModel(ingredient))
+                    .toList();
+            List<IngredientRest> ingredientsRest = ingredientService.saveAll(ingredients).stream()
+                    .map(ingredient -> ingredientRestMapper.toRest(ingredient))
+                    .toList();
+            return ResponseEntity.ok().body(ingredientsRest);
+        } catch (ServerException e) {
+            return ResponseEntity.internalServerError().body(e.getMessage());
+        }
     }
 
     @PutMapping("/ingredients")

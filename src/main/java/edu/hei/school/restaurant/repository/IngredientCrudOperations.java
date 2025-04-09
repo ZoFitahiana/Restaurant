@@ -24,7 +24,6 @@ public class IngredientCrudOperations implements CrudOperations<Ingredient> {
     private final PriceCrudOperations priceCrudOperations;
     private final StockMovementCrudOperations stockMovementCrudOperations;
 
-    // TODO : default values for page and size
     @Override
     public List<Ingredient> getAll(int page, int size) {
         List<Ingredient> ingredients = new ArrayList<>();
@@ -36,6 +35,9 @@ public class IngredientCrudOperations implements CrudOperations<Ingredient> {
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     Ingredient ingredient = ingredientMapper.apply(resultSet);
+                    // charger les prix et les stocks
+                    ingredient.getPrices().addAll(priceCrudOperations.findByIdIngredient(ingredient.getId()));
+                    ingredient.getStockMovements().addAll(stockMovementCrudOperations.findByIdIngredient(ingredient.getId()));
                     ingredients.add(ingredient);
                 }
                 return ingredients;
@@ -49,13 +51,14 @@ public class IngredientCrudOperations implements CrudOperations<Ingredient> {
     public Ingredient findById(Long id) {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                     "select i.id, i.name, di.id as dish_ingredient_id, di.required_quantity, di.unit from ingredient i"
-                             + " join dish_ingredient di on i.id = di.id_ingredient"
-                             + " where i.id = ?")) {
+                     "select i.id, i.name from ingredient i where i.id = ?")) {
             statement.setLong(1, id);
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
-                    return ingredientMapper.apply(resultSet);
+                    Ingredient ingredient = ingredientMapper.apply(resultSet);
+                    ingredient.getPrices().addAll(priceCrudOperations.findByIdIngredient(ingredient.getId()));
+                    ingredient.getStockMovements().addAll(stockMovementCrudOperations.findByIdIngredient(ingredient.getId()));
+                    return ingredient;
                 }
                 throw new NotFoundException("Ingredient.id=" + id + " not found");
             }
@@ -63,6 +66,7 @@ public class IngredientCrudOperations implements CrudOperations<Ingredient> {
             throw new ServerException(e);
         }
     }
+
 
     @SneakyThrows
     @Override
