@@ -11,10 +11,12 @@ import edu.hei.school.restaurant.exception.ClientException;
 import edu.hei.school.restaurant.exception.NotFoundException;
 import edu.hei.school.restaurant.exception.ServerException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -42,18 +44,21 @@ public class IngredientRestController {
         }
     }
 
+
     @PostMapping("/ingredients")
-    public ResponseEntity<Object> createIngredients(@RequestBody List<CreateOrUpdateIngredient> ingredientsToCreate) {
+    public ResponseEntity<Object> addIngredients(@RequestBody List<CreateOrUpdateIngredient> ingredientsToCreate) {
         try {
             List<Ingredient> ingredients = ingredientsToCreate.stream()
-                    .map(ingredient -> ingredientRestMapper.toModel(ingredient))
-                    .toList();
+                    .map(ingredientRestMapper::toModel)
+                    .collect(Collectors.toList());
+
             List<IngredientRest> ingredientsRest = ingredientService.saveAll(ingredients).stream()
-                    .map(ingredient -> ingredientRestMapper.toRest(ingredient))
-                    .toList();
-            return ResponseEntity.ok().body(ingredientsRest);
+                    .map(ingredientRestMapper::toRest)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(ingredientsRest);
         } catch (ServerException e) {
-            return ResponseEntity.internalServerError().body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
 

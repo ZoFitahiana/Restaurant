@@ -71,30 +71,45 @@ public class IngredientCrudOperations implements CrudOperations<Ingredient> {
     @SneakyThrows
     @Override
     public List<Ingredient> saveAll(List<Ingredient> entities) {
+        if (entities == null) {
+            throw new IllegalArgumentException("Entities list cannot be null");
+        }
+
         List<Ingredient> ingredients = new ArrayList<>();
-        try (Connection connection = dataSource.getConnection()) {
-            try (PreparedStatement statement =
-                         connection.prepareStatement("insert into ingredient (id, name) values (?, ?)"
-                                 + " on conflict (id) do update set name=excluded.name"
-                                 + " returning id, name")) {
-                entities.forEach(entityToSave -> {
-                    try {
-                        statement.setLong(1, entityToSave.getId());
-                        statement.setString(2, entityToSave.getName());
-                        statement.addBatch(); // group by batch so executed as one query in database
-                    } catch (SQLException e) {
-                        throw new ServerException(e);
-                    }
-                    priceCrudOperations.saveAll((entityToSave.getPrices()));
-                    stockMovementCrudOperations.saveAll((entityToSave.getStockMovements()));
-                });
+        String sql = "insert into ingredient (id, name) values (?, ?)"
+                + " on conflict (id) do update set name=excluded.name"
+                + " returning id, name";
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            for (Ingredient entityToSave : entities) {
+                if (entityToSave == null) {
+                    continue;
+                }
+
+                statement.setLong(1, entityToSave.getId());
+                statement.setString(2, entityToSave.getName());
+
+                // Execute the statement and get the result
                 try (ResultSet resultSet = statement.executeQuery()) {
                     while (resultSet.next()) {
                         ingredients.add(ingredientMapper.apply(resultSet));
                     }
                 }
-                return ingredients;
+
+                // Save related entities
+                if (entityToSave.getPrices() != null) {
+                    priceCrudOperations.saveAll(entityToSave.getPrices());
+                }
+                if (entityToSave.getStockMovements() != null) {
+                    stockMovementCrudOperations.saveAll(entityToSave.getStockMovements());
+                }
             }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error saving ingredients", e);
         }
+
+        return ingredients;
     }
 }
