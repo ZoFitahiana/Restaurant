@@ -32,36 +32,49 @@ public class StockMovementCrudOperations implements CrudOperations<StockMovement
 
     @Override
     public List<StockMovement> saveAll(List<StockMovement> entities) {
+        if (entities == null) {
+            throw new IllegalArgumentException("Entities list cannot be null");
+        }
+
         List<StockMovement> stockMovements = new ArrayList<>();
         String sql = """
-                insert into stock_movement (id, quantity, unit, movement_type, creation_datetime, id_ingredient)
-                values (?, ?, ?, ?, ?, ?)
-                on conflict (id) do nothing returning id, quantity, unit, movement_type, creation_datetime, id_ingredient""";
+            insert into stock_movement (id, quantity, unit, movement_type, creation_datetime, id_ingredient)
+            values (?, ?, ?, ?, ?, ?)
+            on conflict (id) do update set
+                quantity = excluded.quantity,
+                unit = excluded.unit,
+                movement_type = excluded.movement_type,
+                creation_datetime = excluded.creation_datetime,
+                id_ingredient = excluded.id_ingredient
+            returning id, quantity, unit, movement_type, creation_datetime, id_ingredient""";
+
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement =
-                     connection.prepareStatement(sql)) {
-            entities.forEach(entityToSave -> {
-                try {
-                    statement.setLong(1, entityToSave.getId());
-                    statement.setDouble(2, entityToSave.getQuantity());
-                    statement.setString(3, entityToSave.getUnit().name());
-                    statement.setString(4, entityToSave.getMovementType().name());
-                    statement.setTimestamp(5, Timestamp.from(now()));
-                    statement.setLong(6, entityToSave.getIngredient().getId());
-                    statement.addBatch(); // group by batch so executed as one query in database
-                } catch (SQLException e) {
-                    throw new ServerException(e);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            for (StockMovement entityToSave : entities) {
+                if (entityToSave == null) {
+                    continue;
                 }
-            });
+
+                statement.setLong(1, entityToSave.getId());
+                statement.setDouble(2, entityToSave.getQuantity());
+                statement.setString(3, entityToSave.getUnit().name());
+                statement.setString(4, entityToSave.getMovementType().name());
+                statement.setTimestamp(5, Timestamp.from(entityToSave.getCreationDatetime()));
+                statement.setLong(6, entityToSave.getIngredient().getId());
+                statement.addBatch();
+            }
+
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     stockMovements.add(stockMovementMapper.apply(resultSet));
                 }
             }
-            return stockMovements;
         } catch (SQLException e) {
-            throw new ServerException(e);
+            throw new RuntimeException("Error saving stock movements", e);
         }
+
+        return stockMovements;
     }
 
     public List<StockMovement> findByIdIngredient(Long idIngredient) {

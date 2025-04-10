@@ -1,17 +1,17 @@
 package edu.hei.school.restaurant.controller;
 
-import edu.hei.school.restaurant.dtos.requests.CreatePrice;
-import edu.hei.school.restaurant.dtos.requests.PriceRequest;
+import edu.hei.school.restaurant.dtos.requests.*;
 import edu.hei.school.restaurant.mapper.rest.IngredientRestMapper;
-import edu.hei.school.restaurant.dtos.requests.CreateOrUpdateIngredient;
 import edu.hei.school.restaurant.dtos.responses.IngredientRest;
 import edu.hei.school.restaurant.model.Ingredient;
 import edu.hei.school.restaurant.model.Price;
+import edu.hei.school.restaurant.model.StockMovement;
 import edu.hei.school.restaurant.service.IngredientService;
 import edu.hei.school.restaurant.exception.ClientException;
 import edu.hei.school.restaurant.exception.NotFoundException;
 import edu.hei.school.restaurant.exception.ServerException;
 import edu.hei.school.restaurant.service.PriceService;
+import edu.hei.school.restaurant.service.StockMovementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -31,6 +31,8 @@ public class IngredientRestController {
 
     @Autowired
     private final PriceService priceService;
+    @Autowired
+    private final StockMovementService stockMovementService;
 
     @GetMapping("/ingredients")
     public ResponseEntity<Object> getIngredients(@RequestParam(name = "priceMinFilter", required = false) Double priceMinFilter,
@@ -125,5 +127,37 @@ public class IngredientRestController {
         } catch (ServerException e) {
             return ResponseEntity.internalServerError().body(e.getMessage());
         }
+    }
+
+    @PutMapping("/ingredients/{ingredientId}/stockMovements")
+    public ResponseEntity<Object> updateIngredientStockMovements(
+            @PathVariable Long ingredientId,
+            @RequestBody List<StockMovementRequest> stockMovementRequests) {
+
+        for (StockMovementRequest request : stockMovementRequests) {
+            if (request.getId() == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("StockMovement ID cannot be null");
+            }
+        }
+
+        Ingredient ingredient = ingredientService.getById(ingredientId);
+        if (ingredient == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ingredient not found");
+        }
+
+        List<CreateStockMovement> createStockMovements = stockMovementService.createStockMovementsFromRequests(ingredientId, stockMovementRequests);
+        List<StockMovement> stockMovements = createStockMovements.stream()
+                .map(csm -> {
+                    StockMovement stockMovement = new StockMovement(csm.getId(), ingredient, csm.getQuantity(), csm.getUnit(), csm.getMovementType(), csm.getCreationDatetime());
+                    return stockMovement;
+                })
+                .collect(Collectors.toList());
+
+        stockMovementService.saveAllStockMovements(stockMovements);
+
+        Ingredient updatedIngredient = ingredientService.getById(ingredientId);
+        IngredientRest ingredientRest = ingredientRestMapper.toRest(updatedIngredient);
+
+        return ResponseEntity.ok(ingredientRest);
     }
 }
