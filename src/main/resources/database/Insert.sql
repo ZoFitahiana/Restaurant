@@ -9,6 +9,7 @@ INSERT INTO ingredient (id, name) VALUES
 -- PRICE
 INSERT INTO price (id_ingredient, amount, date_value) VALUES
                                                           (1, 2.50, '2024-08-01'),
+                                                          (1, 2.50, '2024-08-01'),
                                                           (2, 1.20, '2024-08-01'),
                                                           (3, 3.00, '2024-08-01'),
                                                           (4, 5.00, '2024-08-01'),

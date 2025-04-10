@@ -1,7 +1,8 @@
 package edu.hei.school.restaurant.controller;
 
+import edu.hei.school.restaurant.dtos.requests.CreatePrice;
+import edu.hei.school.restaurant.dtos.requests.PriceRequest;
 import edu.hei.school.restaurant.mapper.rest.IngredientRestMapper;
-import edu.hei.school.restaurant.dtos.requests.CreateIngredientPrice;
 import edu.hei.school.restaurant.dtos.requests.CreateOrUpdateIngredient;
 import edu.hei.school.restaurant.dtos.responses.IngredientRest;
 import edu.hei.school.restaurant.model.Ingredient;
@@ -10,7 +11,9 @@ import edu.hei.school.restaurant.service.IngredientService;
 import edu.hei.school.restaurant.exception.ClientException;
 import edu.hei.school.restaurant.exception.NotFoundException;
 import edu.hei.school.restaurant.exception.ServerException;
+import edu.hei.school.restaurant.service.PriceService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +28,9 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 public class IngredientRestController {
     private final IngredientService ingredientService;
     private final IngredientRestMapper ingredientRestMapper;
+
+    @Autowired
+    private final PriceService priceService;
 
     @GetMapping("/ingredients")
     public ResponseEntity<Object> getIngredients(@RequestParam(name = "priceMinFilter", required = false) Double priceMinFilter,
@@ -78,14 +84,34 @@ public class IngredientRestController {
     }
 
     @PutMapping("/ingredients/{ingredientId}/prices")
-    public ResponseEntity<Object> updateIngredientPrices(@PathVariable Long ingredientId, @RequestBody List<CreateIngredientPrice> ingredientPrices) {
-        List<Price> prices = ingredientPrices.stream()
-                .map(ingredientPrice ->
-                        new Price(ingredientPrice.getAmount(), ingredientPrice.getDateValue()))
-                .toList();
-        Ingredient ingredient = ingredientService.addPrices(ingredientId, prices);
-        IngredientRest ingredientRest = ingredientRestMapper.toRest(ingredient);
-        return ResponseEntity.ok().body(ingredientRest);
+    public ResponseEntity<Object> updateIngredientPrices(
+            @PathVariable Long ingredientId,
+            @RequestBody List<PriceRequest> priceRequests) {
+        for (PriceRequest request : priceRequests) {
+            if (request.getId() == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Price ID cannot be null");
+            }
+        }
+        Ingredient ingredient = ingredientService.getById(ingredientId);
+        if (ingredient == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Ingredient not found");
+        }
+        List<CreatePrice> createPrices = priceService.createPricesFromRequests(ingredientId, priceRequests);
+        List<Price> prices = createPrices.stream()
+                .map(cp -> {
+                    Price price = new Price(cp.getId(), cp.getAmount(), cp.getDateValue().toLocalDate());
+                    price.setIngredient(ingredient);
+                    return price;
+                })
+                .collect(Collectors.toList());
+        System.out.println(
+                prices
+        );
+        priceService.saveAllPrices(prices);
+        Ingredient updatedIngredient = ingredientService.getById(ingredientId);
+        IngredientRest ingredientRest = ingredientRestMapper.toRest(updatedIngredient);
+
+        return ResponseEntity.ok(ingredientRest);
     }
 
     @GetMapping("/ingredients/{id}")

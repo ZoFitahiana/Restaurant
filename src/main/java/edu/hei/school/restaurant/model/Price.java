@@ -1,6 +1,5 @@
 package edu.hei.school.restaurant.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,13 +19,22 @@ public class Price {
     private Double amount;
     private LocalDate dateValue;
 
-    public Price(Double amount) {
+    // Constructor with ID, amount, and dateValue
+    public Price(Long id, Double amount, LocalDate dateValue) {
+        this.id = id;
         this.amount = amount;
-        this.dateValue = now();
+        this.dateValue = dateValue;
     }
 
+    // Constructor with amount and dateValue
     public Price(Double amount, LocalDate dateValue) {
         this.amount = amount;
         this.dateValue = dateValue;
+    }
+
+    // Constructor with only amount, defaulting dateValue to now
+    public Price(Double amount) {
+        this.amount = amount;
+        this.dateValue = now();
     }
 }

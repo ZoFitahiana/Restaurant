@@ -32,31 +32,41 @@ public class PriceCrudOperations implements CrudOperations<Price> {
     @SneakyThrows
     @Override
     public List<Price> saveAll(List<Price> entities) {
+        if (entities == null) {
+            throw new IllegalArgumentException("Entities list cannot be null");
+        }
+
         List<Price> prices = new ArrayList<>();
+        String sql = "insert into price (id, amount, date_value, id_ingredient) values (?, ?, ?, ?)"
+                + " on conflict (id) do update set amount=excluded.amount, date_value=excluded.date_value, id_ingredient=excluded.id_ingredient"
+                + " returning id, amount, date_value, id_ingredient";
+
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement =
-                     connection.prepareStatement("insert into price (id, amount, date_value, id_ingredient) values (?, ?, ?, ?)"
-                             + " on conflict (id) do nothing"
-                             + " returning id, amount, date_value, id_ingredient");) {
-            entities.forEach(entityToSave -> {
-                try {
-                    statement.setLong(1, entityToSave.getId());
-                    statement.setDouble(2, entityToSave.getAmount());
-                    statement.setDate(3, Date.valueOf(entityToSave.getDateValue()));
-                    statement.setLong(4, entityToSave.getIngredient().getId());
-                    statement.addBatch(); // group by batch so executed as one query in database
-                } catch (SQLException e) {
-                    throw new ServerException(e);
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            for (Price entityToSave : entities) {
+                if (entityToSave == null) {
+                    continue;
                 }
-            });
-            try (ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    prices.add(priceMapper.apply(resultSet));
+
+                statement.setLong(1, entityToSave.getId());
+                statement.setDouble(2, entityToSave.getAmount());
+                statement.setDate(3, Date.valueOf(entityToSave.getDateValue()));
+                statement.setLong(4, entityToSave.getIngredient().getId());
+
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    while (resultSet.next()) {
+                        prices.add(priceMapper.apply(resultSet));
+                    }
                 }
             }
-            return prices;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error saving prices", e);
         }
+
+        return prices;
     }
+
 
     public List<Price> findByIdIngredient(Long idIngredient) {
         List<Price> prices = new ArrayList<>();
