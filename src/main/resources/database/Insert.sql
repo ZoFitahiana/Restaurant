@@ -36,3 +36,17 @@ INSERT INTO dish_ingredient (dish_id, id_ingredient, required_quantity, unit) VA
                                                                                   (1, 3, 100, 'G'),  -- Fromage
                                                                                   (2, 4, 1, 'U'),    -- Poulet
                                                                                   (2, 5, 0.3, 'L');  -- Crème
+
+CREATE TABLE orders (
+                        reference VARCHAR(50) PRIMARY KEY,
+                        status VARCHAR(20) NOT NULL CHECK (status IN ('CREATED', 'CONFIRMED')),
+                        total_price NUMERIC(10, 2) NOT NULL
+);
+
+CREATE TABLE dish_order (
+                            id BIGSERIAL PRIMARY KEY,
+                            order_reference VARCHAR(50) REFERENCES orders(reference) ON DELETE CASCADE,
+                            dish_id BIGINT NOT NULL REFERENCES dish(id) ON DELETE CASCADE,
+                            quantity INTEGER NOT NULL,
+                            status VARCHAR(20) NOT NULL CHECK (status IN ('IN_PROGRESS', 'FINISHED', 'DELIVERED'))
+);
